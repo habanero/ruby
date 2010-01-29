@@ -58,19 +58,6 @@ class ThreadPool
     kill
   end
 
-  private
-  def create_thread
-    t = Thread.start(@queue) do |q|
-      loop{job = q.pop; job.call }
-    end
-    log("create thread:#{t.inspect}\n")
-    t
-  end
-
-  def kill
-    @threads.each {|t| t.kill; log("kill:#{t.inspect}\n") }
-  end
-
   #  === 戻り値
   #
   #  例外で終了したワーカースレッドの個数
@@ -85,17 +72,31 @@ class ThreadPool
     count
   end
 
+  private
+  def create_thread
+    t = Thread.start(@queue) do |q|
+      loop{job = q.pop; job.call }
+    end
+    
+    log("create thread:#{t.inspect}\n")
+    t
+  end
+
+  def kill
+    @threads.each {|t| t.kill; log("kill:#{t.inspect}\n") }
+  end
+
   #  === 詳細
   #
   #  例外で終了したスレッドを削除して、新規にスレッドを作成する
   def clean_up
-    before = @threads.size
-    @threads.reject!{ |t| t.status.nil? }
-    reject_num = before - @threads.size
+    @create_thread_mutex.synchronize do
+      before = @threads.size
+      @threads.reject!{ |t| t.status.nil? }
+      reject_num = before - @threads.size
 
-    if reject_num > 0
-      log("thread dead count:#{reject_num}\n")
-      @create_thread_mutex.synchronize do
+      if reject_num > 0
+        log("thread dead count:#{reject_num}\n")
         reject_num.times{ @threads << create_thread }
       end
     end
@@ -127,5 +128,5 @@ if __FILE__ == $0
     t.execute() {sleep 0.1; raise if i==1 or i==3 or i==10 or i==30}
   end
   t.shutdown_with_clean_up
-  puts "shutdown_with_clean_up ended with raise"
+  puts "shutdown_with_clean_up with raise ended"
 end
