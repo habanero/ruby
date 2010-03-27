@@ -99,7 +99,7 @@ if __FILE__ == $0
   class Google
     include HTTPDomainObject
     def get
-      http.get().to('http://www.google.co.jp/')
+      http.get.to('http://www.google.co.jp/')
     end
   end
 
